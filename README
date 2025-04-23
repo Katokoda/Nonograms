@@ -1,0 +1,21 @@
+This repository aims at creating tools for solving and creating Nonograms. This is a personnal project from me with the additionnal constraint of not looking for solutions from internet nore AI. This has been a lot of fun and a lot of lost nights ;)
+
+My initial approach was more of a "let's that get done quickly" but right now I feel the need to clean stuff, add comments, separate files and build stronger tests as well as planning for user-interaction fonctionnalities. Hence I initiated a git repo, quite late. Let's see how it goes!
+
+TODO:
+=== Functionnality ===
+Let some basic information be stored in the Nonogram file (mostly Uniqueness)
+Store the solutions along the way
+Add a Silence mode
+Check similarities in both sides after a guess
+Remove the useless Lsolve() after Stuck-Stuck
+!!! --> Achievable cleanly by making "change" into a state-variable, distinct for both dimensions
+Add the possibility to Highlight a cell during state.print()
+Add the possibility to Highlight a line after an error has been detected
+
+=== cleanless ===
+Read parameters from commands instead of in the code through macros
+
+=== other ===
+Edit this README to ass examples, instalations guide and tutorials
+Create the Python app usefull for converting pictures into Nonograms - long term goal ;)
