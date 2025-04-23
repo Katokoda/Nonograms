@@ -17,5 +17,5 @@ Add the possibility to Highlight a line after an error has been detected
 Read parameters from commands instead of in the code through macros
 
 === other ===
-Edit this README to ass examples, instalations guide and tutorials
+Edit this README to add examples, instalation guides and tutorials
 Create the Python app usefull for converting pictures into Nonograms - long term goal ;)
