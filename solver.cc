@@ -793,53 +793,7 @@ public:
 		state->print(pretty);
 	}
 
-	linSolvOu_t linesolve_manual(){
-		size_t filledBefore(state->getCount());
-		bool changed(true);
-		bool fastForward(FAST_FORWARD_DEFAULT);
-		size_t i(0);
-		while (changed){
-			if (not fastForward) cout << "### Iteration " << i << " ###" << endl;
-
-			if (PAUSE_EVERY_SEMIITER and not fastForward){
-				print();
-				cout << "Press Enter to proceed into the iteration and check rows" << endl;
-				fastForward = checkEntryAndFF();
-			}
-
-			changed = false;
-			for (size_t i(0); i < n; i++){
-				int flag(state->checkRow(BlocksInRow[i], i));
-				if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
-				bool justChanged(flag);
-				if (PRINT_EVERY_CHANGE and justChanged) print();
-				changed = (justChanged or changed);
-			}
-
-			if (PAUSE_EVERY_SEMIITER and not fastForward){
-				print();
-				cout << "Press Enter to check columns" << endl;
-				fastForward = checkEntryAndFF();
-			}
-
-			for (size_t i(0); i < m; i++){
-				int flag(state->checkCol(BlocksInCol[i], i));
-				if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
-				bool justChanged(flag);
-				if (PRINT_EVERY_CHANGE and justChanged) print();
-				changed = (justChanged or changed);
-			}
-			i++;
-		}
-		cout << "Nothing to solve, nothing changed." << endl;
-		print();
-		cout << "End of solve() loop after " << i << " iterations." << endl;
-		if (state->isSolved()){
-			return {Unique, (unsigned int)(state->getCount() - filledBefore)};}
-		return {Stuck,  (unsigned int)(state->getCount() - filledBefore)};
-	}
-
-	linSolvOu_t linesolve_auto(bool verbose = false){
+	linSolvOu_t lineSolve(bool verbose = false){
 		size_t filledBefore(state->getCount());
 		bool changed(true);
 		bool fastForward(false);
@@ -1038,7 +992,7 @@ public:
 		bool fastForward(false);
 		bool justStuckStuck(false);
 		do {
-			linSolvOu_t out(Lsolver->linesolve_auto((depth == 0) and wantToSeeDetails and not justStuckStuck and not fastForward));
+			linSolvOu_t out(Lsolver->lineSolve((depth == 0) and wantToSeeDetails and not justStuckStuck and not fastForward));
 			if (0 < out.modifCells){
 				fastForward = false;
 				grid->notifyChange();
@@ -1075,7 +1029,7 @@ public:
 				}
 
 				LinSolver* hyp_full(Lsolver->copy(hyp, Full));
-				linSolvOu_t out_full(hyp_full->linesolve_auto(false));
+				linSolvOu_t out_full(hyp_full->lineSolve(false));
 				if (0 < out_full.modifCells){
 					if (wantToSeeDetails and out_full.flag == Unique) {
 						cout << "The solver just found out that the guess # on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
@@ -1094,7 +1048,7 @@ public:
 						BACKGROUND(DEFAULT);
 						cout << endl;
 						LinSolver* justALook(Lsolver->copy(hyp, Full));
-						justALook->linesolve_auto(true);
+						justALook->lineSolve(true);
 						delete(justALook);
 						cout << endl;
 						if (unsureAboutUniqueness){
@@ -1119,7 +1073,7 @@ public:
 				}
 
 				LinSolver* hyp_empt(Lsolver->copy(hyp, Empt));
-				linSolvOu_t out_empt(hyp_empt->linesolve_auto(false));
+				linSolvOu_t out_empt(hyp_empt->lineSolve(false));
 				if (0 < out_empt.modifCells){
 					if (wantToSeeDetails and out_empt.flag == Unique) {
 						cout << "The solver just found out that the guess x on (" << hyp.i << ", " << hyp.j << ") gives a solution.";
@@ -1138,7 +1092,7 @@ public:
 						BACKGROUND(DEFAULT);
 						cout << endl;
 						LinSolver* justALook(Lsolver->copy(hyp, Empt));
-						justALook->linesolve_auto(true);
+						justALook->lineSolve(true);
 						delete(justALook);
 						if (unsureAboutUniqueness){
 							BACKGROUND(CYAN_B)
@@ -1269,7 +1223,7 @@ OUTPUTCOLOR(DEFAULT)
 	void manual_solve(){
 		linSolvOu_t output({Stuck, 0});
 		while (output.flag == Stuck){
-			output = Csolver->Lsolver->linesolve_manual();
+			output = Csolver->Lsolver->lineSolve();
 			switch (output.flag){
 
 				case NoSol:
