@@ -8,9 +8,6 @@ Let some basic information be stored in the Nonogram file (mostly Uniqueness)
 Store the solutions along the way
 Add a Silence mode
 Check similarities in both sides after a guess
-Remove the useless Lsolve() after Stuck-Stuck
-!!! --> Achievable cleanly by making "change" into a state-variable, distinct for both dimensions
-Add the possibility to Highlight a cell during state.print()
 Add the possibility to Highlight a line after an error has been detected
 
 === cleanless ===

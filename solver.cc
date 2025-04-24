@@ -13,6 +13,7 @@ using namespace std;
 #define RED_F "31"
 #define GREEN_F "32"
 #define YELLOW_F "33"
+#define BLUE_F "94"
 #define CYAN_F "96"
 
 #define WHITE_B "107"
@@ -556,14 +557,16 @@ private:
 	size_t count;
 	vector<Blocks> const& BlocksInRow;
 	vector<Blocks> const&  BlocksInCol;
+	bool rowsAreChecked;
+	bool colsAreChecked;
 
 	tab_t tab;
 	vector<size_t> countInRow;
 	vector<bool> modifRow;
 	vector<bool> modifCol;
 public:
-	State(size_t n_, size_t m_, vector<Blocks> const& BlocksInRow_, vector<Blocks> const& BlocksInCol_)
-	:n(n_), m(m_), count(0), BlocksInRow(BlocksInRow_), BlocksInCol(BlocksInCol_)
+	State(size_t n_, size_t m_, vector<Blocks> const& BlocksInRow_, vector<Blocks> const& BlocksInCol_, bool rowChecked = false, bool colChecked = false)
+	:n(n_), m(m_), count(0), BlocksInRow(BlocksInRow_), BlocksInCol(BlocksInCol_), rowsAreChecked(rowChecked), colsAreChecked(colChecked)
 	{
 		tab.resize(n);
 		countInRow.resize(n);
@@ -579,7 +582,7 @@ public:
 	}
 
 	State* deepCopy(){
-		State* other(new State(n, m, BlocksInRow, BlocksInCol));
+		State* other(new State(n, m, BlocksInRow, BlocksInCol, rowsAreChecked, colsAreChecked));
 		other->tab = tab;
 		other->count = count;
 		other->countInRow = countInRow;
@@ -595,11 +598,14 @@ public:
 		if (tab[i][j] == Void){
 			tab[i][j] = val;
 			modifRow[i] = true;
+			rowsAreChecked = false;
 			modifCol[j] = true;
+			colsAreChecked = false;
 			countInRow[i]++;
 			count++;
 		} else {
 			cout << "ERROR - playing at non-void" << endl;
+			throw;
 		}
 	}
 
@@ -611,10 +617,18 @@ public:
 		return count == n*m;
 	}
 
-	void print(bool pretty = false) const{
+	bool needRowCheck() const{return !rowsAreChecked;}
+	bool needColCheck() const{return !colsAreChecked;}
+	void notifyRowsChecked(){rowsAreChecked = true;}
+	void notifyColsChecked(){colsAreChecked = true;}
+
+	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}) const{
 		cout << "┌";
 		for (size_t i(0); i<m; i++) cout << "─";
-		cout << "┐" << endl;
+		if (rowsAreChecked) OUTPUTCOLOR(GREEN_F);
+		cout << "┐";
+		OUTPUTCOLOR(DEFAULT);
+		cout << endl;
 
 		for (size_t i(0); i < n; i++){
 			cout << "│";
@@ -629,6 +643,7 @@ public:
 					}
 				} else {
 					if (ALTERNATE_BACKGROUND and (i+j)%2 == 0 and (ALTERNATE_EVERYWHERE or tab[i][j] == Void)) cout << "\e[40m";
+					if (highlight.i == i and highlight.j == j) BACKGROUND(GREEN_B)
 					cout << tab[i][j];
 					BACKGROUND(DEFAULT);
 				}
@@ -640,13 +655,19 @@ public:
 			cout << endl;
 		}
 
+		if (colsAreChecked) OUTPUTCOLOR(GREEN_F);
 		cout << "└";
+		OUTPUTCOLOR(DEFAULT);
+
 		for (size_t i(0); i<m; i++){
 			if (not modifCol[i]) OUTPUTCOLOR(GREEN_F);
 			cout << "─";
 			OUTPUTCOLOR(DEFAULT);
 		}
-		cout << "┘" << endl;
+		if (rowsAreChecked and colsAreChecked) OUTPUTCOLOR(GREEN_F);
+		cout << "┘";
+		OUTPUTCOLOR(DEFAULT);
+		cout << endl;
 
 		bool stillColPrinting(true);
 		for (size_t j(0); stillColPrinting; j++){
@@ -789,40 +810,41 @@ public:
 		return other;
 	}
 
-	void print(bool pretty = false){
-		state->print(pretty);
+	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}){
+		state->print(pretty, highlight);
 	}
 
 	linSolvOu_t lineSolve(bool verbose = false){
 		size_t filledBefore(state->getCount());
-		bool changed(true);
 		bool fastForward(false);
-		while (changed){
+		while (state->needRowCheck() or state->needColCheck()){
 
-			if (verbose and not fastForward){
-				print();
-				cout << "Press Enter to check rows" << endl;
-				fastForward = checkEntryAndFF();
+			if (state->needRowCheck()){
+				if (verbose and not fastForward){
+					print();
+					cout << "Press Enter to check rows" << endl;
+					fastForward = checkEntryAndFF();
+				}
+
+				for (size_t i(0); i < n; i++){
+					int flag(state->checkRow(BlocksInRow[i], i));
+					if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
+				}
+				state->notifyRowsChecked();
 			}
 
-			changed = false;
-			for (size_t i(0); i < n; i++){
-				int flag(state->checkRow(BlocksInRow[i], i));
-				if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
-				changed = (flag or changed);
-			}
+			if (state->needColCheck()){
+				if (verbose and not fastForward){
+					print();
+					cout << "Press Enter to check columns" << endl;
+					fastForward = checkEntryAndFF();
+				}
 
-			changed = false;
-			if (verbose and not fastForward){
-				print();
-				cout << "Press Enter to check columns" << endl;
-				fastForward = checkEntryAndFF();
-			}
-
-			for (size_t i(0); i < m; i++){
-				int flag(state->checkCol(BlocksInCol[i], i));
-				if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
-				changed = (flag or changed);
+				for (size_t i(0); i < m; i++){
+					int flag(state->checkCol(BlocksInCol[i], i));
+					if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
+				}
+				state->notifyColsChecked();
 			}
 		}
 		if (verbose) print();
@@ -1014,12 +1036,12 @@ public:
 					cout << "stuck";
 					BACKGROUND(DEFAULT)
 					cout << ":" << endl;
-					Lsolver->print();
 			}
 
 			gridPTR hyp({n, m});
 			bool validHypFlag(grid->get(Lsolver->state, hyp));
 			grid->print();
+			Lsolver->print(false, hyp);
 
 			if (validHypFlag){
 				cout << space << "hyp on (" << hyp.i << ", " << hyp.j << ")" << endl;
