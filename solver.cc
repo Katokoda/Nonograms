@@ -41,6 +41,7 @@ using namespace std;
 #define PRINT_DETAIL_LINES false
 
 #define CHECK_AMBIGUITY true
+#define DO_CUT_NUMBERS false
 
 #define PRINTONENUMBER(n, back) BACKGROUND(back) \
 								printOneNumber(n);
@@ -53,7 +54,7 @@ void printOneNumber(int n){
 	} else {
 		switch (n/10){
 			case(0):
-				cout << "\033[37m";
+				OUTPUTCOLOR(DEFAULT);
 				break;
 			case(1):
 				cout << "\033[33m";
@@ -622,7 +623,7 @@ public:
 	void notifyRowsChecked(){rowsAreChecked = true;}
 	void notifyColsChecked(){colsAreChecked = true;}
 
-	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}) const{
+	void print(bool pretty = false, bool cutNumbers = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}) const{
 		cout << "┌";
 		for (size_t i(0); i<m; i++) cout << "─";
 		if (rowsAreChecked) OUTPUTCOLOR(GREEN_F);
@@ -651,7 +652,9 @@ public:
 			if (not modifRow[i]) OUTPUTCOLOR(GREEN_F);
 			cout << "│";
 			OUTPUTCOLOR(DEFAULT);
-			for (auto const& val: BlocksInRow[i].v) cout << " " << val;
+			if (!cutNumbers){
+				for (auto const& val: BlocksInRow[i].v) cout << " " << val;
+			}
 			cout << endl;
 		}
 
@@ -669,25 +672,22 @@ public:
 		OUTPUTCOLOR(DEFAULT);
 		cout << endl;
 
-		bool stillColPrinting(true);
-		for (size_t j(0); stillColPrinting; j++){
-			stillColPrinting = false;
-			cout << " ";
-			for (size_t i(0); i<m; i++){
-				if (j < BlocksInCol[i].v.size()){
-					if (j +1 < BlocksInCol[i].v.size()) stillColPrinting = true;
-					if (BlocksInCol[i].v[j] < 10){
-						cout << BlocksInCol[i].v[j];
+
+		if (!cutNumbers){
+			bool stillColPrinting(true);
+			for (size_t j(0); stillColPrinting; j++){
+				stillColPrinting = false;
+				cout << " ";
+				for (size_t i(0); i<m; i++){
+					if (j < BlocksInCol[i].v.size()){
+						if (j +1 < BlocksInCol[i].v.size()) stillColPrinting = true;
+						printOneNumber(BlocksInCol[i].v[j]);
 					} else {
-						OUTPUTCOLOR(CYAN_F)
-						cout << (BlocksInCol[i].v[j] % 10);
-						OUTPUTCOLOR(DEFAULT)
+						cout << " ";
 					}
-				} else {
-					cout << " ";
 				}
+				cout << " " << endl;
 			}
-			cout << " " << endl;
 		}
 
 		cout << endl;
@@ -810,8 +810,8 @@ public:
 		return other;
 	}
 
-	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}){
-		state->print(pretty, highlight);
+	void print(bool pretty = false, bool cutNumbers = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}){
+		state->print(pretty, cutNumbers, highlight);
 	}
 
 	linSolvOu_t lineSolve(bool verbose = false){
@@ -821,7 +821,7 @@ public:
 
 			if (state->needRowCheck()){
 				if (verbose and not fastForward){
-					print();
+					print(false, DO_CUT_NUMBERS);
 					cout << "Press Enter to check rows" << endl;
 					fastForward = checkEntryAndFF();
 				}
@@ -835,7 +835,7 @@ public:
 
 			if (state->needColCheck()){
 				if (verbose and not fastForward){
-					print();
+					print(false, DO_CUT_NUMBERS);
 					cout << "Press Enter to check columns" << endl;
 					fastForward = checkEntryAndFF();
 				}
@@ -959,8 +959,8 @@ public:
 		return;
 	}
 	HypHolder getBest(){
-		cout << "WARNING - TODO - implement sorting" << endl;
-		return *grid[0][0];
+		cout << "ERROR - TODO - implement sorting" << endl;
+		throw;
 	}
 };
 
@@ -1024,7 +1024,7 @@ public:
 			switch (out.flag){
 				case Unique:
 					cout << space << "A unique solution has been found:" << endl;
-					Lsolver->print();
+					Lsolver->print(false, DO_CUT_NUMBERS);
 					return nSol+1;
 				case NoSol:
 					cout << space << "No valid solution - impossible problem" << endl;
@@ -1041,7 +1041,7 @@ public:
 			gridPTR hyp({n, m});
 			bool validHypFlag(grid->get(Lsolver->state, hyp));
 			grid->print();
-			Lsolver->print(false, hyp);
+			Lsolver->print(false, DO_CUT_NUMBERS, hyp);
 
 			if (validHypFlag){
 				cout << space << "hyp on (" << hyp.i << ", " << hyp.j << ")" << endl;
@@ -1050,95 +1050,72 @@ public:
 					fastForward = checkEntryAndFF();
 				}
 
-				LinSolver* hyp_full(Lsolver->copy(hyp, Full));
-				linSolvOu_t out_full(hyp_full->lineSolve(false));
-				if (0 < out_full.modifCells){
-					if (wantToSeeDetails and out_full.flag == Unique) {
-						cout << "The solver just found out that the guess # on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
+				LinSolver* hyp_full(nullptr);
+				LinSolver* hyp_empt(nullptr);
+				linSolvOu_t out_full;
+				linSolvOu_t out_empt;
+
+				for (cell filling(Full); filling != Void; filling = (filling == Full ? Empt : Void)){
+					LinSolver* hypSolver(Lsolver->copy(hyp, filling));
+					linSolvOu_t hypOut(hypSolver->lineSolve(false));
+					if (0 < out.modifCells){
+						if (wantToSeeDetails and out.flag == Unique) {
+							cout << "The solver just found out that the guess ";
+							cout << filling;
+							cout << " on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
+						} else {
+							hypSolver->print(false, DO_CUT_NUMBERS);
+						}
+					}
+					cout << space;
+					cout << filling;
+					cout << " --> (" << hypOut.flag << ", " << hypOut.modifCells << ")" << endl;
+					if (hypOut.flag == Unique){
+						nSol++;
+						cout << space << "TODO - Store solution" << endl;
+						hypSolver->print(true, DO_CUT_NUMBERS);
+
+						if (wantToSeeDetails){
+							cout << endl << endl;
+							BACKGROUND(CYAN_B)
+							cout << space << "Let's take a look at what happens after guessing that ;)";
+							BACKGROUND(DEFAULT);
+							cout << endl;
+							LinSolver* justALook(Lsolver->copy(hyp, filling));
+							justALook->lineSolve(true);
+							delete(justALook);
+							cout << endl;
+							if (unsureAboutUniqueness){
+								BACKGROUND(CYAN_B)
+								cout << space << "Let's get back to the seriousness of checking uniqueness ;)";
+								BACKGROUND(DEFAULT);
+								cout << " " << endl << endl;
+							}
+						}
+						if (not unsureAboutUniqueness){
+							if (unsureAboutUniqueness){
+								BACKGROUND(CYAN_B)
+							}
+							cout << space << "The solution is CONSIDERED unique and we do not check uniqueness";
+							if (unsureAboutUniqueness){
+								BACKGROUND(DEFAULT);
+							}
+							cout << "." << endl;
+							assert(nSol == 1);
+							return 1;
+						}
+					}
+					// Store both solver for later. However, their original pointer ceased to exist.
+					if (filling == Full){
+						hyp_full = hypSolver;
+						out_full = hypOut;
 					} else {
-						hyp_full->print();
-					}
-				}
-				cout << space << "# --> (" << out_full.flag << ", " << out_full.modifCells << ")" << endl;
-				if (out_full.flag == Unique){
-					nSol++;
-					cout << space << "TODO - Store solution" << endl;
-					if (wantToSeeDetails){
-						cout << endl << endl;
-						BACKGROUND(CYAN_B)
-						cout << space << "Let's take a look at what happens after guessing that ;)";
-						BACKGROUND(DEFAULT);
-						cout << endl;
-						LinSolver* justALook(Lsolver->copy(hyp, Full));
-						justALook->lineSolve(true);
-						delete(justALook);
-						cout << endl;
-						if (unsureAboutUniqueness){
-							BACKGROUND(CYAN_B)
-							cout << space << "Let's get back to the seriousness of checking uniqueness ;)";
-							BACKGROUND(DEFAULT);
-							cout << " " << endl << endl;
-						}
-					}
-					if (not unsureAboutUniqueness){
-						if (unsureAboutUniqueness){
-							BACKGROUND(CYAN_B)
-						}
-						cout << space << "The solution is CONSIDERED unique and we do not check uniqueness";
-						if (unsureAboutUniqueness){
-							BACKGROUND(DEFAULT);
-						}
-						cout << "." << endl;
-						assert(nSol == 1);
-						return 1;
+						hyp_empt = hypSolver;
+						out_empt = hypOut;
 					}
 				}
 
-				LinSolver* hyp_empt(Lsolver->copy(hyp, Empt));
-				linSolvOu_t out_empt(hyp_empt->lineSolve(false));
-				if (0 < out_empt.modifCells){
-					if (wantToSeeDetails and out_empt.flag == Unique) {
-						cout << "The solver just found out that the guess x on (" << hyp.i << ", " << hyp.j << ") gives a solution.";
-					} else {
-						hyp_empt->print();
-					}
-				}
-				cout << space << "x --> (" << out_empt.flag << ", " << out_empt.modifCells << ")" << endl;
-				if (out_empt.flag == Unique){
-					nSol++;
-					cout << space << "TODO - Store solution" << endl;
-					if (wantToSeeDetails){
-						cout << endl << endl;
-						BACKGROUND(CYAN_B)
-						cout << space << "Let's take a look at what happens after guessing that ;)";
-						BACKGROUND(DEFAULT);
-						cout << endl;
-						LinSolver* justALook(Lsolver->copy(hyp, Empt));
-						justALook->lineSolve(true);
-						delete(justALook);
-						if (unsureAboutUniqueness){
-							BACKGROUND(CYAN_B)
-							cout << space << "Let's get back to the seriousness of checking uniqueness ;)";
-							BACKGROUND(DEFAULT);
-							cout << " " << endl << endl;
-						}
-					}
-					if (not unsureAboutUniqueness){
-						if (unsureAboutUniqueness){
-							BACKGROUND(CYAN_B)
-						}
-						cout << space << "The solution is CONSIDERED unique and we do not check uniqueness";
-						if (unsureAboutUniqueness){
-							BACKGROUND(DEFAULT);
-						}
-						cout << "." << endl;
-						assert(nSol == 1);
-						return 1;
-					}
-				}
-
-
-				cout << space << "(#, x) ==> (" << out_full.flag << ", " << out_empt.flag << ")" << endl;
+				cout << space << "(#, x) ==> ( (" << out_full.flag << ", " << out_full.modifCells << "), (" << out_empt.flag << ", " << out_empt.modifCells << ")" << endl;
 				if (out_full.flag != Stuck and out_empt.flag != Stuck){
 					cout << space << "DBG - No need to continue this branch" << endl;
 					return nSol;
@@ -1173,7 +1150,6 @@ public:
 						(out_full.modifCells > out_empt.modifCells ? Full : Empt)
 					}));
 				}
-
 
 				delete(hyp_full);
 				delete(hyp_empt);
@@ -1283,7 +1259,7 @@ OUTPUTCOLOR(DEFAULT)
 
 				case Unique:
 					cout << "Solution found!" << endl;
-					Csolver->Lsolver->print(true);
+					Csolver->Lsolver->print(true, DO_CUT_NUMBERS);
 					break;
 			}
 		}

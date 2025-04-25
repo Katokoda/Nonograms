@@ -4,11 +4,15 @@ My initial approach was more of a "let's that get done quickly" but right now I 
 
 TODO:
 === Functionnality ===
+Finally complete check_line() with a 0-depth hypothesis check.
 Let some basic information be stored in the Nonogram file (mostly Uniqueness)
 Store the solutions along the way
 Add a Silence mode
 Check similarities in both sides after a guess
 Add the possibility to Highlight a line after an error has been detected
+Shorten te last-cycle before recursion.
+Use the numberPrint for printing the numbers (yeah, what a sentence)
+Add the possibility to cut the numbers above ;(
 
 === cleanless ===
 Read parameters from commands instead of in the code through macros
