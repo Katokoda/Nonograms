@@ -942,7 +942,7 @@ public:
 			for (size_t j(0); j < m; j++){
 				if (lastHyp.i == i and lastHyp.j == j) BACKGROUND(GREEN_B)
 				if (grid[i][j] != nullptr){
-					printOneNumber(grid[i][j]->n_main);
+					printOneNumber(grid[i][j]->n_sec);
 				} else {
 					cout << "-";
 				}
@@ -1058,13 +1058,15 @@ public:
 				for (cell filling(Full); filling != Void; filling = (filling == Full ? Empt : Void)){
 					LinSolver* hypSolver(Lsolver->copy(hyp, filling));
 					linSolvOu_t hypOut(hypSolver->lineSolve(false));
-					if (0 < out.modifCells){
-						if (wantToSeeDetails and out.flag == Unique) {
+					if (0 < hypOut.modifCells){
+						if (wantToSeeDetails){
+							if (hypOut.flag == Unique) {
 							cout << "The solver just found out that the guess ";
 							cout << filling;
 							cout << " on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
-						} else {
-							hypSolver->print(false, DO_CUT_NUMBERS);
+							} else {
+								hypSolver->print(false, DO_CUT_NUMBERS);
+							}
 						}
 					}
 					cout << space;
@@ -1115,7 +1117,7 @@ public:
 					}
 				}
 
-				cout << space << "(#, x) ==> ( (" << out_full.flag << ", " << out_full.modifCells << "), (" << out_empt.flag << ", " << out_empt.modifCells << ")" << endl;
+				cout << space << "(#, x) ==> ( (" << out_full.flag << ", " << out_full.modifCells << "), (" << out_empt.flag << ", " << out_empt.modifCells << ") )" << endl;
 				if (out_full.flag != Stuck and out_empt.flag != Stuck){
 					cout << space << "DBG - No need to continue this branch" << endl;
 					return nSol;
