@@ -25,9 +25,11 @@ using namespace std;
 #define OUTPUTCOLOR(clr) cout << "\033[" clr "m";
 
 #define BACKGROUND(clr) cout << "\033[" BLACK_F "m" << "\033[" clr "m";
-#define STOPTEST false
-#define DEBUG_PAUSE_AFTER_SHOW false
 
+
+
+
+#define STOPTEST true
 //#define DEBUG_LEFTMOST
 //#define DEBUG_CHECKLINE
 //#define SCANNING_DEBUG
@@ -39,6 +41,7 @@ using namespace std;
 #define PAUSE_EVERY_SEMIITER true
 #define FAST_FORWARD_DEFAULT false
 #define PRINT_DETAIL_LINES false
+#define DEBUG_PAUSE_AFTER_SHOW false
 
 #define CHECK_AMBIGUITY true
 #define DO_CUT_NUMBERS false
@@ -119,6 +122,22 @@ void explainColors(){
 	}
 	
 	cout << endl << endl;
+}
+
+void cheatSheetColors(){
+	cout << "\033[37m" << "0x" << " ";
+	cout << "\033[33m" << "1x" << " ";
+	cout << "\033[32m" << "2x" << " ";
+	cout << "\033[36m" << "3x" << " ";
+	cout << "\033[96m" << "4x" << " ";
+	cout << "\033[34m" << "5x" << " ";
+	cout << "\033[94m" << "6x" << " ";
+	cout << "\033[35m" << "7x" << " ";
+	cout << "\033[95m" << "8x" << " ";
+	cout << "\033[90m" << "9x" << " ";
+	cout << "\033[93m" << "x--" << " ";
+	cout << "\033[31m" << "*" << endl;
+	OUTPUTCOLOR(DEFAULT)
 }
 
 
@@ -457,23 +476,24 @@ bool rightMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size
 	return true;
 }
 
-
-bool checkLine(Blocks const& blocks, line_t const& lin, line_t& res, bool verb = false){
+bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 	size_t n(lin.size());
 	size_t k(blocks.v.size());
 
+	// Copy lin (input) into res (output)
 	for (size_t i(0); i < n; i++){
 		if (lin[i] != Void) res[i] = lin[i];
 	}
 
-#ifdef DEBUG_CHECKLINE
-		cout << "Calling checkLine on" << endl;
+	#ifdef DEBUG_CHECKLINE
+		cout << endl;
+		cout << "Calling checkLine_simple on" << endl;
 		cout << "\"";
 		for (auto const& val:lin) cout << val;
 		cout << "\" with blocks [";
 		for (auto const& val:blocks.v) cout << val << " ";
 		cout << "] gives :" << endl;
-#endif
+	#endif
 
 	// Find LEFT-most configuration
 	vector<size_t> leftMost(blocks.v.size(), 0); // leftMost[i] = left-most square of the i-th block in the left-most configuration
@@ -485,22 +505,23 @@ bool checkLine(Blocks const& blocks, line_t const& lin, line_t& res, bool verb =
 	flag = (rightMostConfiguration(blocks, lin, rightMost));
 	if (not flag) return false;
 
-#ifdef SCANNING_DEBUG
-	cout << endl << endl;
-	cout << "Continuing checkLine on" << endl << "\"";
-	for (auto const& val:lin) cout << val;
-	cout << "\" with blocks [";
-	for (auto const& val:blocks.v) cout << val << " ";
-	cout << "]." << endl;
-	cout << endl;
-#endif
+	#ifdef SCANNING_DEBUG
+		cout << endl << endl;
+		cout << "Continuing checkLine_simple on" << endl << "\"";
+		for (auto const& val:lin) cout << val;
+		cout << "\" with blocks [";
+		for (auto const& val:blocks.v) cout << val << " ";
+		cout << "]." << endl;
+		cout << endl;
+	#endif
 
 
 	for (size_t idx(0); idx < k; idx++){
-#ifdef DEBUG_CHECKLINE
-		if (verb) cout << "DBG - checkLine - block " << idx << " of length " << blocks.v[idx] << endl;
-		if (verb) cout << "[" << leftMost[idx] << ", " << rightMost[idx] << "]" << endl;
-#endif
+		#ifdef DEBUG_CHECKLINE
+				cout << endl;
+				cout << "DBG - checkLine_simple - block " << idx << " of length " << blocks.v[idx] << endl;
+				cout << "[" << leftMost[idx] << ", " << rightMost[idx] << "]" << endl;
+		#endif
 
 
 		// draw intersection of both extremes if exists
@@ -530,6 +551,10 @@ bool checkLine(Blocks const& blocks, line_t const& lin, line_t& res, bool verb =
 					for (size_t pos(potStart); pos < scaner; pos++){
 						if (res[pos] != Full) res[pos] = Void;
 					}
+					#if defined(SCANNING_DEBUG) || defined(DEBUG_CHECKLINE)
+						cout << "Maybying - foundEnd - valid : erase x" << endl;
+						printScanning(potStart, scaner, res);
+					#endif
 				}
 				potStart++;
 			} else if (scaner < potStart + blocks.v[idx]){
@@ -543,10 +568,68 @@ bool checkLine(Blocks const& blocks, line_t const& lin, line_t& res, bool verb =
 			#endif
 		}
 	}
-	if (verb){
+#ifdef DEBUG_CHECKLINE
 		cout << "\"";
 		for (auto const& val:res) cout << val;
 		cout << "\"" << endl << endl;
+#endif
+
+	return true;
+}
+
+bool guessLine(Blocks const& blocks, line_t const& lin, size_t idx, cell guess){
+	// Call checkLine on a copy of LIN where the cell idx is replaced by guess.
+	// Returns TRUE if everything seems fine and FALSE if the guess gives an error.
+
+#ifdef DEBUG_CHECKLINE
+		cout << endl;
+		cout << "Calling guessLine - idx=" << idx << " with guess= " << guess << endl;
+#endif
+
+	size_t n(lin.size());
+	line_t lin_changed(n, Empt);
+	line_t out(n, Empt);
+	for (size_t i(0); i < n; i++){
+		if (i != idx){
+			lin_changed[i] = lin[i];
+		} else {
+			assert(lin[i] == Void);
+			lin_changed[i] = guess;
+		}
+	}
+	return checkLine_simple(blocks, lin_changed, out);
+}
+
+
+bool checkLine(Blocks const& blocks, line_t const& lin, line_t& res){
+	size_t n(lin.size());
+
+	line_t lin_changed(n, Empt);
+	for (size_t i(0); i < n; i++){
+		lin_changed[i] = lin[i];
+	}
+
+	bool needToSolve(true);
+	while (needToSolve){
+		bool isOkey(checkLine_simple(blocks, lin_changed, res));
+		if (not isOkey) return false;
+
+		needToSolve = false;
+
+		for (size_t i(0); i < n; i++){
+			if (res[i] == Void){
+				bool FullIsOkey(guessLine(blocks, lin_changed, i, Full));
+				bool EmptIsOkey(guessLine(blocks, lin_changed, i, Empt));
+				if (not FullIsOkey){
+					lin_changed[i] = Empt;
+					needToSolve = true;
+				}
+				if (not EmptIsOkey){
+					lin_changed[i] = Full;
+					needToSolve = true;
+				}
+			}
+		}
 	}
 	return true;
 }
@@ -707,7 +790,7 @@ public:
 		for (size_t k(0); k < m; k++) lin[k] = tab[i][k];
 
 		line_t out(m, Empt);
-		bool succesFlag(checkLine(blocks, lin, out, PRINT_DETAIL_LINES));
+		bool succesFlag(checkLine(blocks, lin, out));
 		if (not succesFlag){
 			if (PRINT_DETAIL_LINES) {
 				OUTPUTCOLOR(RED_F);
@@ -740,7 +823,7 @@ public:
 		for (size_t k(0); k < n; k++) lin[k] = tab[k][i];
 
 		line_t out(n, Empt);
-		bool succesFlag(checkLine(blocks, lin, out, PRINT_DETAIL_LINES));
+		bool succesFlag(checkLine(blocks, lin, out));
 		if (not succesFlag){
 			if (PRINT_DETAIL_LINES) {
 				OUTPUTCOLOR(RED_F);
@@ -761,6 +844,8 @@ public:
 		return 0;
 	}
 };
+
+vector<State*> GLOBAL_SOLUTIONS;
 
 bool checkEntryAndFF(){
 	cout << "(or write down \"f\" in order to fast forward)" << endl;
@@ -814,7 +899,7 @@ public:
 		state->print(pretty, cutNumbers, highlight);
 	}
 
-	linSolvOu_t lineSolve(bool verbose = false){
+	linSolvOu_t lineSolve(bool verbose = false, bool trueExploration = true){
 		size_t filledBefore(state->getCount());
 		bool fastForward(false);
 		while (state->needRowCheck() or state->needColCheck()){
@@ -849,6 +934,7 @@ public:
 		}
 		if (verbose) print();
 		if (state->isSolved()){
+			if (trueExploration) GLOBAL_SOLUTIONS.push_back(state->deepCopy());
 			return {Unique, (unsigned int)(state->getCount() - filledBefore)};
 		}
 		return {Stuck,  (unsigned int)(state->getCount() - filledBefore)};
@@ -933,6 +1019,7 @@ public:
 	}
 
 	void print(){
+		cheatSheetColors();
 		cout << "┌";
 		for (size_t i(0); i<m; i++) cout << "─";
 		cout << "┐" << endl;
@@ -960,7 +1047,7 @@ public:
 	}
 	HypHolder getBest(){
 		cout << "ERROR - TODO - implement sorting" << endl;
-		throw;
+		return *grid[0][0];
 	}
 };
 
@@ -1074,8 +1161,6 @@ public:
 					cout << " --> (" << hypOut.flag << ", " << hypOut.modifCells << ")" << endl;
 					if (hypOut.flag == Unique){
 						nSol++;
-						cout << space << "TODO - Store solution" << endl;
-						hypSolver->print(true, DO_CUT_NUMBERS);
 
 						if (wantToSeeDetails){
 							cout << endl << endl;
@@ -1084,7 +1169,7 @@ public:
 							BACKGROUND(DEFAULT);
 							cout << endl;
 							LinSolver* justALook(Lsolver->copy(hyp, filling));
-							justALook->lineSolve(true);
+							justALook->lineSolve(true, false);
 							delete(justALook);
 							cout << endl;
 							if (unsureAboutUniqueness){
@@ -1275,21 +1360,35 @@ OUTPUTCOLOR(DEFAULT)
 		cout << n_solve;
 		OUTPUTCOLOR(DEFAULT)
 		cout << " solution(s) to the Nonogram." << endl;
+
+		cout << endl;
+		for (size_t i(0); i < GLOBAL_SOLUTIONS.size(); i++){
+			cout << i << endl;
+			GLOBAL_SOLUTIONS[i]->print(true);
+		}
 	}
 };
 
-bool test_checkLine(Blocks blocks, line_t lin, line_t goal, bool verb = false){
+bool test_checkLine(Blocks blocks, line_t lin, line_t goal){
 	line_t out(lin.size(), Empt);
-	bool succesFlag(checkLine(blocks, lin, out, verb));
+
+	cout << "[";
+	for (auto const& val:lin) cout << val;
+	cout << "]";
+	cout << " ";
+	for (auto const& val:blocks.v) cout << val << " ";
+	cout << endl;
+
+	bool succesFlag(checkLine(blocks, lin, out));
 
 	// Got
 	OUTPUTCOLOR(CYAN_F)
 	cout << "> Got :" << endl;
 	OUTPUTCOLOR(DEFAULT)
 	if (succesFlag) {
-		cout << "\"";
+		cout << "[";
 		for (auto const& val:out) cout << val;
-		cout << "\"" << endl;
+		cout << "]" << endl;
 	} else {
 		OUTPUTCOLOR(CYAN_F)
 		cout << "An error!" << endl;
@@ -1301,9 +1400,9 @@ bool test_checkLine(Blocks blocks, line_t lin, line_t goal, bool verb = false){
 	cout << "> Expected :" << endl;
 	OUTPUTCOLOR(DEFAULT)
 	if (goal.size() != 0) {
-		cout << "\"";
+		cout << "[";
 		for (auto const& val:goal) cout << val;
-		cout << "\"" << endl;
+		cout << "]" << endl;
 	} else {
 		OUTPUTCOLOR(CYAN_F)
 		cout << "An error!" << endl;
@@ -1325,6 +1424,7 @@ bool test_checkLine(Blocks blocks, line_t lin, line_t goal, bool verb = false){
 
 
 int main(int argc, char *argv[]) {
+	GLOBAL_SOLUTIONS.resize(0);
 	string filename;
 	if (argc == 2){
 		filename = argv[1];
@@ -1338,7 +1438,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2}),
 										line_t({Void, Void, Void, Void, Void}),
-										line_t({Void, Void, Void, Void, Void}), true);
+										line_t({Void, Void, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1347,7 +1447,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({5}),
 										line_t({Void, Void, Void, Void, Void}),
-										line_t({Full, Full, Full, Full, Full}), true);
+										line_t({Full, Full, Full, Full, Full}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1356,7 +1456,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3}),
 										line_t({Void, Void, Void, Void, Void}),
-										line_t({Void, Void, Full, Void, Void}), true);
+										line_t({Void, Void, Full, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1365,7 +1465,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3, 2, 1}),
 										line_t({Void, Void, Void, Void, Void, Void, Void, Void, Void}),
-										line_t({Void, Full, Full, Void, Void, Full, Void, Void, Void}), true);
+										line_t({Void, Full, Full, Void, Void, Full, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1374,7 +1474,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3}),
 										line_t({Void, Void, Void, Empt, Void}),
-										line_t({Full, Full, Full, Empt, Empt}), true);
+										line_t({Full, Full, Full, Empt, Empt}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1383,7 +1483,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2}),
 										line_t({Void, Void, Empt, Void, Empt, Void, Void}),
-										line_t({Void, Void, Empt, Empt, Empt, Void, Void}), true);
+										line_t({Void, Void, Empt, Empt, Empt, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1392,7 +1492,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2, 3, 1}),
 										line_t({Void, Void, Void, Empt, Void, Empt, Void, Void, Void, Empt, Void, Void, Empt, Void}),
-										line_t({Void, Full, Void, Empt, Empt, Empt, Full, Full, Full, Empt, Void, Void, Empt, Void}), true);
+										line_t({Void, Full, Void, Empt, Empt, Empt, Full, Full, Full, Empt, Void, Void, Empt, Void}));
 
 
 
@@ -1402,7 +1502,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({1}),
 										line_t({Full, Full}),
-										line_t({}), true);
+										line_t({}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1411,7 +1511,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({1, 2}),
 										line_t({Full, Void, Void, Void, Void, Void, Void}),
-										line_t({Full, Empt, Void, Void, Void, Void, Void}), true);
+										line_t({Full, Empt, Void, Void, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1420,7 +1520,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({4, 2}),
 										line_t({Void, Full, Void, Void, Void, Void, Void, Void, Full, Void, Void}),
-										line_t({Void, Full, Full, Full, Void, Empt, Empt, Void, Full, Void, Empt}), true);
+										line_t({Void, Full, Full, Full, Void, Empt, Empt, Void, Full, Void, Empt}));
 
 
 
@@ -1430,7 +1530,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({5}),
 										line_t({Full, Void, Void, Void, Void, Void, Void, Void, Void, Void, Void, Void}),
-										line_t({Full, Full, Full, Full, Full, Empt, Empt, Empt, Empt, Empt, Empt, Empt}), true);
+										line_t({Full, Full, Full, Full, Full, Empt, Empt, Empt, Empt, Empt, Empt, Empt}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1439,7 +1539,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({1, 3}),
 										line_t({Void, Void, Void, Empt, Full, Void, Empt, Void, Void, Void, Void}),
-										line_t({Empt, Empt, Empt, Empt, Full, Empt, Empt, Void, Full, Full, Void}), true);
+										line_t({Empt, Empt, Empt, Empt, Full, Empt, Empt, Void, Full, Full, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1448,7 +1548,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({1, 3, 1}),
 										line_t({Void, Void, Void, Empt, Full, Void, Empt, Void, Void, Void, Void, Void, Void}),
-										line_t({Empt, Empt, Empt, Empt, Full, Empt, Empt, Void, Full, Full, Void, Void, Void}), true);
+										line_t({Empt, Empt, Empt, Empt, Full, Empt, Empt, Void, Full, Full, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1457,7 +1557,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3, 1, 2, 4}),
 										line_t({Void, Void, Void, Void, Full, Void, Void, Void, Void, Void, Void, Void, Void, Full, Void}),
-										line_t({Void, Void, Full, Void, Full, Empt, Void, Void, Void, Void, Void, Full, Full, Full, Void}), true);
+										line_t({Void, Void, Full, Void, Full, Empt, Void, Void, Void, Void, Void, Full, Full, Full, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1466,7 +1566,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3, 1, 2, 4}),
 										line_t({Void, Void, Void, Void, Full, Void, Void, Void, Void, Void, Void, Void, Void, Full, Void}),
-										line_t({Void, Void, Full, Void, Full, Empt, Void, Void, Void, Void, Void, Full, Full, Full, Void}), true);
+										line_t({Void, Void, Full, Void, Full, Empt, Void, Void, Void, Void, Void, Full, Full, Full, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1475,7 +1575,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({1, 2, 1, 2, 1}),
 										line_t({Void, Void, Void, Void, Full, Void, Full, Full, Void, Full, Void, Void, Void, Void, Void}),
-										line_t({Empt, Empt, Empt, Empt, Full, Empt, Full, Full, Empt, Full, Empt, Full, Full, Empt, Full}), true);
+										line_t({Empt, Empt, Empt, Empt, Full, Empt, Full, Full, Empt, Full, Empt, Full, Full, Empt, Full}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1484,7 +1584,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2, 2, 2}),
 										line_t({Void, Void, Void, Void, Void, Void, Empt, Full, Void, Void, Void, Void, Void, Void}),
-										line_t({Void, Void, Void, Void, Void, Void, Empt, Full, Full, Empt, Void, Void, Void, Void}), true);
+										line_t({Void, Void, Void, Void, Void, Void, Empt, Full, Full, Empt, Void, Void, Void, Void}));
 
 		if (succesCount < testCount and STOPTEST) return 0;
 		testCount++;
@@ -1492,7 +1592,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2, 1}),
 										line_t({Void, Void, Empt, Full, Void, Void, Void}),
-										line_t({Void, Void, Empt, Full, Void, Empt, Void}), true);
+										line_t({Void, Void, Empt, Full, Void, Empt, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1501,7 +1601,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2, 5, 2}),
 										line_t({Void, Void, Void, Void, Void, Void, Void, Full, Full, Void, Void, Full, Empt, Void, Void}),
-										line_t({Void, Void, Void, Void, Void, Void, Void, Full, Full, Void, Full, Full, Empt, Void, Void}), true);
+										line_t({Void, Void, Void, Void, Void, Void, Void, Full, Full, Void, Full, Full, Empt, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1510,7 +1610,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({2, 1, 3, 1}),
 										line_t({Empt, Void, Full, Void, Void, Void, Full, Void, Void, Full, Void, Void, Void, Void, Void}),
-										line_t({Empt, Void, Full, Void, Empt, Empt, Full, Empt, Void, Full, Full, Void, Void, Void, Void}), true);
+										line_t({Empt, Void, Full, Void, Empt, Empt, Full, Empt, Void, Full, Full, Void, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1519,7 +1619,7 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({3, 1, 1, 3, 1}),
 										line_t({Void, Void, Void, Void, Full, Void, Void, Full, Void, Void, Full, Void, Void, Void, Void, Void, Void, Void, Void, Void}),
-										line_t({Void, Void, Void, Void, Full, Void, Empt, Full, Empt, Void, Full, Void, Void, Void, Void, Void, Void, Void, Void, Void}), true);
+										line_t({Void, Void, Void, Void, Full, Void, Empt, Full, Empt, Void, Full, Void, Void, Void, Void, Void, Void, Void, Void, Void}));
 
 
 		if (succesCount < testCount and STOPTEST) return 0;
@@ -1528,15 +1628,16 @@ OUTPUTCOLOR(CYAN_F)
 		cout << endl << "========= Test " << testCount << endl; OUTPUTCOLOR(DEFAULT)
 		succesCount += test_checkLine(Blocks({4, 1, 5, 2}),
 										line_t({Void, Void, Void, Void, Void, Void, Void, Void, Void, Full, Void, Void, Full, Full, Void, Void, Void, Void, Void, Full, Void, Void, Void, Void, Void}),
-										line_t({Void, Void, Void, Void, Void, Void, Void, Void, Empt, Full, Void, Void, Full, Full, Void, Void, Void, Empt, Void, Full, Void, Empt, Empt, Empt, Empt}), true);
+										line_t({Void, Void, Void, Void, Void, Void, Void, Void, Empt, Full, Void, Void, Full, Full, Void, Void, Void, Empt, Void, Full, Void, Empt, Empt, Empt, Empt}));
 
 
 
-
+		cout << endl;
 		if (succesCount < testCount) {
 			cout << "Some test failed: " << succesCount << "/" << testCount << endl;
 			return 0;
 		}
+		cout << "ALL TEST SUCESSFULL: " << succesCount << "/" << testCount << endl << endl;
 		cout << "Please enter the file name: " << endl;
 		cin >> filename;
 	}

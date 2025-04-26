@@ -4,7 +4,6 @@ My initial approach was more of a "let's that get done quickly" but right now I 
 
 TODO:
 === Functionnality ===
-Finally complete check_line() with a 0-depth hypothesis check.
 Let some basic information be stored in the Nonogram file (mostly Uniqueness)
 Check similarities in both sides after a guess
 Add the possibility to Highlight a line after an error has been detected
@@ -13,7 +12,6 @@ Interactivity
 => Store in HH and show in the grid. Let the user choose where to guess based on that.
 
 === cleaness ===
-Store the solutions along the way
 Add a Silence mode
 Shorten te last-cycle before recursion.
 --> upon Modif: All "previous" guesses are non-valid, right?
