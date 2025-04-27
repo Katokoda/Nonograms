@@ -26,25 +26,51 @@ using namespace std;
 
 #define BACKGROUND(clr) cout << "\033[" BLACK_F "m" << "\033[" clr "m";
 
-
-
-
-#define STOPTEST true
+#define STOPTEST false
+#define DEBUG_PAUSE_AFTER_SHOW false
 //#define DEBUG_LEFTMOST
 //#define DEBUG_CHECKLINE
 //#define SCANNING_DEBUG
 //#define DEBUG
 
-#define ALTERNATE_BACKGROUND true
-#define ALTERNATE_EVERYWHERE true
-#define PRINT_EVERY_CHANGE false
-#define PAUSE_EVERY_SEMIITER true
-#define FAST_FORWARD_DEFAULT false
-#define PRINT_DETAIL_LINES false
-#define DEBUG_PAUSE_AFTER_SHOW false
 
-#define CHECK_AMBIGUITY true
-#define DO_CUT_NUMBERS false
+struct ParamBundle{
+	bool pauseEverySemiIter;
+	bool pauseEverySemiIter_evenDuringGuesses;
+	bool pauseEveryGuess;
+	bool doCutNumbers;
+	bool checkAmbiguity;
+	bool exploreSolvingGuesses;
+	bool printEverySemiIter;
+	bool printResultOfLineSolve;
+	bool printRecursiveStructure;
+	bool printGuessStructure;
+	bool printHypPreview;
+	bool printHypGrid;
+};
+ParamBundle GlobalParams;
+void setGlobalParameters(){
+	// TODO Check application of those parameters
+	GlobalParams.pauseEverySemiIter						= false;
+	GlobalParams.pauseEverySemiIter_evenDuringGuesses	= false		and GlobalParams.pauseEverySemiIter;
+	GlobalParams.pauseEveryGuess						= false;
+
+	GlobalParams.checkAmbiguity							= true;
+	GlobalParams.exploreSolvingGuesses					= true		and GlobalParams.pauseEverySemiIter;
+
+	GlobalParams.doCutNumbers							= true;
+	
+	GlobalParams.printEverySemiIter						= false;
+	GlobalParams.printResultOfLineSolve					= false;
+
+	GlobalParams.printHypPreview						= false;
+	GlobalParams.printHypGrid							= false 	and GlobalParams.printHypPreview;
+
+	GlobalParams.printRecursiveStructure				= false;
+	GlobalParams.printGuessStructure					= false		or GlobalParams.printRecursiveStructure;
+}
+
+
 
 #define PRINTONENUMBER(n, back) BACKGROUND(back) \
 								printOneNumber(n);
@@ -95,9 +121,7 @@ void printOneNumber(int n){
 
 void explainColors(){
 	cout << "This program often needs to print a big number in only one character." << endl;
-	cout << "The color and value of the character will depend on the nummber according to the list below." << endl;
-	cout << "(put your number on the list such that each written digit matches," << endl;
-	cout << " the 'x' will be displayed in the matching color)" << endl;
+	cout << "The color and value of the character will depend on the number according to the list below." << endl;
 
 	cout << "\033[37m" << "00x" << "  ";
 	cout << "\033[33m" << "01x" << "  ";
@@ -108,15 +132,22 @@ void explainColors(){
 	cout << "\033[94m" << "06x" << "  ";
 	cout << "\033[35m" << "07x" << "  ";
 	cout << "\033[95m" << "08x" << "  ";
-	cout << "\033[90m" << "09x" << endl;
-	cout << "\033[93m" << "x--" << "  ";
-	cout << "\033[31m" << "(every number bigger than 999 will be a red *)" << endl;
+	cout << "\033[90m" << "09x";
 	OUTPUTCOLOR(DEFAULT)
-	cout << endl << "Numbers {00, 11, 22, ..., 99, 110, 121}" << endl;
+	cout << "  for number below 100." << endl;
+
+	cout << "\033[93m" << "x--";
+	OUTPUTCOLOR(DEFAULT)
+	cout << "  for hundreds and ";
+	cout << "\033[31m" << "*";
+	OUTPUTCOLOR(DEFAULT)
+	cout << "  for numbers above 999." << endl;
+	cout << "Examples:" << endl;
+	cout << endl << "The numbers {00, 11, 22, ..., 99, 110, 121} will be:" << endl;
 	for (int n(0); n < 130; n+=11){
 		printOneNumber(n);
 	}
-	cout << endl << "Numbers {64, 128, 256, 512, 1024}" << endl;
+	cout << endl << "The numbers {64, 128, 256, 512, 1024} will be:" << endl;
 	for (int n(64); n < 2000; n*=2){
 		printOneNumber(n);
 	}
@@ -185,14 +216,6 @@ std::ostream& operator<<(std::ostream& out, const flagOu_t& f){
 			return out << "??";
 	}
 }
-
-//TODO LIST
-/*
-Implémenter un vérificateur sur la somme de cases pleines (chaque côté)
-	- Si la somme est différente, print le nombre de lignes lues et le nombre de ligne totales que le fichier doit avoir
-Lire les arguments de la ligne de commande à la place de MACROS
-*/
-
 
 
 typedef string string;
@@ -331,16 +354,12 @@ bool leftMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_
 				}
 				return false;
 			}
-			//cout << "with block  " << idx << " at " << res[idx] << endl;
 			if (blocks.v[idx] < givenBlocks[givB_Idx].rightMost - givenBlocks[givB_Idx].leftMost + 1){
-				//cout << "can't cover" << endl; // too short
 				res[idx] = givenBlocks[givB_Idx].rightMost + 1;
 			} else {
 				if (givenBlocks[givB_Idx].rightMost <= res[idx] + blocks.v[idx] - 1){
-					//cout << "covered already" << endl;
 				} else {
 					res[idx] = givenBlocks[givB_Idx].rightMost + 1 - blocks.v[idx];
-					//cout << "w-------->  " << idx << " at " << res[idx] << endl;
 					changedBlock = true;
 				}
 				givB_Idx--;
@@ -730,7 +749,7 @@ public:
 	void notifyRowsChecked(){rowsAreChecked = true;}
 	void notifyColsChecked(){colsAreChecked = true;}
 
-	void print(bool pretty = false, bool cutNumbers = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}) const{
+	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}) const{
 		cout << "┌";
 		for (size_t i(0); i<m; i++) cout << "─";
 		if (rowsAreChecked) OUTPUTCOLOR(GREEN_F);
@@ -750,7 +769,7 @@ public:
 							BACKGROUND(DEFAULT);
 					}
 				} else {
-					if (ALTERNATE_BACKGROUND and (i+j)%2 == 0 and (ALTERNATE_EVERYWHERE or tab[i][j] == Void)) cout << "\e[40m";
+					if ((i+j)%2 == 0) cout << "\e[40m";
 					if (highlight.i == i and highlight.j == j) BACKGROUND(GREEN_B)
 					cout << tab[i][j];
 					BACKGROUND(DEFAULT);
@@ -759,7 +778,7 @@ public:
 			if (not modifRow[i]) OUTPUTCOLOR(GREEN_F);
 			cout << "│";
 			OUTPUTCOLOR(DEFAULT);
-			if (!cutNumbers){
+			if (!GlobalParams.doCutNumbers){
 				for (auto const& val: BlocksInRow[i].v) cout << " " << val;
 			}
 			cout << endl;
@@ -780,7 +799,7 @@ public:
 		cout << endl;
 
 
-		if (!cutNumbers){
+		if (!GlobalParams.doCutNumbers){
 			bool stillColPrinting(true);
 			for (size_t j(0); stillColPrinting; j++){
 				stillColPrinting = false;
@@ -807,23 +826,14 @@ public:
 		if (not modifRow[i]) return 0;
 		modifRow[i] = false; // Otherwise, we set it to false for detecting changes.
 
-		if (PRINT_DETAIL_LINES) cout << "Check row " << i << endl;
-
 		line_t lin;
 		lin.resize(m);
 		for (size_t k(0); k < m; k++) lin[k] = tab[i][k];
 
 		line_t out(m, Empt);
 		bool succesFlag(checkLine(blocks, lin, out));
-		if (not succesFlag){
-			if (PRINT_DETAIL_LINES) {
-				OUTPUTCOLOR(RED_F);
-				cout << "ERROR";
-				OUTPUTCOLOR(DEFAULT);
-				cout << " - something is wrong in that line" << endl;
-			}
-			return -1;
-		}
+		if (not succesFlag) return -1;
+
 		for (size_t k(0); k < m; k++){
 			if (out[k] != Void and out[k] != lin[k]) play(i, k, out[k]);
 		}
@@ -839,7 +849,6 @@ public:
 		if (not modifCol[i]) {
 			return 0;
 		}
-		if (PRINT_DETAIL_LINES) cout << "Check col " << i << endl;
 		modifCol[i] = false;
 
 		line_t lin;
@@ -848,15 +857,7 @@ public:
 
 		line_t out(n, Empt);
 		bool succesFlag(checkLine(blocks, lin, out));
-		if (not succesFlag){
-			if (PRINT_DETAIL_LINES) {
-				OUTPUTCOLOR(RED_F);
-				cout << "ERROR";
-				OUTPUTCOLOR(DEFAULT);
-				cout << " - something is wrong in that line" << endl;
-			}
-			return -1;
-		}
+		if (not succesFlag) return -1;
 
 		for (size_t k(0); k < n; k++){
 			if (out[k] != Void and out[k] != lin[k]) play(k, i, out[k]);
@@ -919,32 +920,37 @@ public:
 		return other;
 	}
 
-	void print(bool pretty = false, bool cutNumbers = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}){
-		state->print(pretty, cutNumbers, highlight);
+	void print(bool pretty = false, gridPTR highlight = {(unsigned int)(-1), (unsigned int)(-1)}){
+		state->print(pretty, highlight);
 	}
 
-	linSolvOu_t lineSolve(bool verbose = false, bool trueExploration = true){
+	linSolvOu_t lineSolve(size_t depth = 0, bool trueExploration = true){
 		size_t filledBefore(state->getCount());
-		bool fastForward(false);
+		bool fastForward(not GlobalParams.pauseEverySemiIter);
 		while (state->needRowCheck() or state->needColCheck()){
 
 			if (state->needRowCheck()){
-				if (verbose and not fastForward){
-					print(false, DO_CUT_NUMBERS);
+
+				if (GlobalParams.printEverySemiIter) print();
+				if (((GlobalParams.pauseEverySemiIter and depth == 0)
+					 or (GlobalParams.pauseEverySemiIter_evenDuringGuesses))
+					and (not fastForward)){
 					cout << "Press Enter to check rows" << endl;
 					fastForward = checkEntryAndFF();
 				}
 
 				for (size_t i(0); i < n; i++){
 					int flag(state->checkRow(BlocksInRow[i], i));
-					if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)};
+					if (flag < 0) return {NoSol, (unsigned int)(state->getCount() - filledBefore)}; // TODO - return an indicator of the row/col which is erroneous
 				}
 				state->notifyRowsChecked();
 			}
 
 			if (state->needColCheck()){
-				if (verbose and not fastForward){
-					print(false, DO_CUT_NUMBERS);
+				if (GlobalParams.printEverySemiIter) print();
+				if (((GlobalParams.pauseEverySemiIter and depth == 0)
+					 or (GlobalParams.pauseEverySemiIter_evenDuringGuesses))
+					and (not fastForward)){
 					cout << "Press Enter to check columns" << endl;
 					fastForward = checkEntryAndFF();
 				}
@@ -956,7 +962,10 @@ public:
 				state->notifyColsChecked();
 			}
 		}
-		if (verbose) print();
+
+		// Either LinSolve is Stuck or it has found a Unique solution.
+
+		if (GlobalParams.printResultOfLineSolve) print();
 		if (state->isSolved()){
 			if (trueExploration) GLOBAL_SOLUTIONS.push_back(state->deepCopy());
 			return {Unique, (unsigned int)(state->getCount() - filledBefore)};
@@ -1069,9 +1078,14 @@ public:
 		cout << "┘" << endl;
 		return;
 	}
+
 	HypHolder getBest(){
 		cout << "ERROR - TODO - implement sorting" << endl;
-		return *grid[0][0];
+		cout << "i j:" << " ";
+		size_t i, j;
+		cin >> i >> j;
+
+		return *grid[i][j];
 	}
 };
 
@@ -1120,12 +1134,12 @@ public:
 	}
 
 
-	unsigned int complexSolve(bool unsureAboutUniqueness = CHECK_AMBIGUITY, bool wantToSeeDetails = true){
+	unsigned int complexSolve(){
 		unsigned int nSol(0);
 		bool fastForward(false);
 		bool justStuckStuck(false);
 		do {
-			linSolvOu_t out(Lsolver->lineSolve((depth == 0) and wantToSeeDetails and not justStuckStuck and not fastForward));
+			linSolvOu_t out(Lsolver->lineSolve((depth == 0) and not justStuckStuck and not fastForward));
 			if (0 < out.modifCells){
 				fastForward = false;
 				grid->notifyChange();
@@ -1134,29 +1148,35 @@ public:
 
 			switch (out.flag){
 				case Unique:
-					cout << space << "A unique solution has been found:" << endl;
-					Lsolver->print(false, DO_CUT_NUMBERS);
+					if (GlobalParams.printGuessStructure){
+						cout << space << "A unique solution has been found:" << endl;
+						Lsolver->print(false);
+					}
 					return nSol+1;
 				case NoSol:
-					cout << space << "No valid solution - impossible problem" << endl;
+					if (GlobalParams.printGuessStructure){
+						cout << space << "No valid solution - impossible problem" << endl;
+					}
 					return nSol+0;
-				default:
-					cout << endl;
-					cout << space << "The simple lin-solver is ";
-					BACKGROUND(RED_B)
-					cout << "stuck";
-					BACKGROUND(DEFAULT)
-					cout << ":" << endl;
+				case Stuck:
+					if (GlobalParams.printGuessStructure){
+						cout << endl;
+						cout << space << "The simple lin-solver is ";
+						BACKGROUND(RED_B)
+						cout << "stuck";
+						BACKGROUND(DEFAULT)
+						cout << ":" << endl;
+					}
 			}
 
 			gridPTR hyp({n, m});
 			bool validHypFlag(grid->get(Lsolver->state, hyp));
-			grid->print();
-			Lsolver->print(false, DO_CUT_NUMBERS, hyp);
+			if (GlobalParams.printHypGrid) grid->print();
+			if (GlobalParams.printHypPreview) Lsolver->print(false, hyp);
 
 			if (validHypFlag){
-				cout << space << "hyp on (" << hyp.i << ", " << hyp.j << ")" << endl;
-				if (wantToSeeDetails and not fastForward){
+				if (GlobalParams.printGuessStructure) cout << space << "hyp on (" << hyp.i << ", " << hyp.j << ")" << endl;
+				if (GlobalParams.pauseEveryGuess and not fastForward){
 					cout << space << "Press Enter to continue." << endl;
 					fastForward = checkEntryAndFF();
 				}
@@ -1169,24 +1189,24 @@ public:
 				for (cell filling(Full); filling != Void; filling = (filling == Full ? Empt : Void)){
 					LinSolver* hypSolver(Lsolver->copy(hyp, filling));
 					linSolvOu_t hypOut(hypSolver->lineSolve(false));
-					if (0 < hypOut.modifCells){
-						if (wantToSeeDetails){
-							if (hypOut.flag == Unique) {
-							cout << "The solver just found out that the guess ";
-							cout << filling;
-							cout << " on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
-							} else {
-								hypSolver->print(false, DO_CUT_NUMBERS);
-							}
+					if (GlobalParams.printGuessStructure and 0 < hypOut.modifCells){
+						if (hypOut.flag == Unique) {
+						cout << "The solver just found out that the guess ";
+						cout << filling;
+						cout << " on (" << hyp.i << ", " << hyp.j << ") gives a solution." << endl;
+						} else {
+							hypSolver->print(false);
 						}
 					}
-					cout << space;
-					cout << filling;
-					cout << " --> (" << hypOut.flag << ", " << hypOut.modifCells << ")" << endl;
+					if (GlobalParams.printGuessStructure){
+						cout << space;
+						cout << filling;
+						cout << " --> (" << hypOut.flag << ", " << hypOut.modifCells << ")" << endl;
+					}
 					if (hypOut.flag == Unique){
 						nSol++;
 
-						if (wantToSeeDetails){
+						if (GlobalParams.exploreSolvingGuesses){
 							cout << endl << endl;
 							BACKGROUND(CYAN_B)
 							cout << space << "Let's take a look at what happens after guessing that ;)";
@@ -1196,26 +1216,24 @@ public:
 							justALook->lineSolve(true, false);
 							delete(justALook);
 							cout << endl;
-							if (unsureAboutUniqueness){
+							if (GlobalParams.checkAmbiguity){
 								BACKGROUND(CYAN_B)
 								cout << space << "Let's get back to the seriousness of checking uniqueness ;)";
 								BACKGROUND(DEFAULT);
 								cout << " " << endl << endl;
 							}
 						}
-						if (not unsureAboutUniqueness){
-							if (unsureAboutUniqueness){
-								BACKGROUND(CYAN_B)
-							}
+
+						if (not GlobalParams.checkAmbiguity){
+							BACKGROUND(CYAN_B)
 							cout << space << "The solution is CONSIDERED unique and we do not check uniqueness";
-							if (unsureAboutUniqueness){
-								BACKGROUND(DEFAULT);
-							}
+							BACKGROUND(DEFAULT);
 							cout << "." << endl;
 							assert(nSol == 1);
 							return 1;
 						}
 					}
+
 					// Store both solver for later. However, their original pointer ceased to exist.
 					if (filling == Full){
 						hyp_full = hypSolver;
@@ -1226,9 +1244,9 @@ public:
 					}
 				}
 
-				cout << space << "(#, x) ==> ( (" << out_full.flag << ", " << out_full.modifCells << "), (" << out_empt.flag << ", " << out_empt.modifCells << ") )" << endl;
+				if (GlobalParams.printGuessStructure) cout << space << "(#, x) ==> ( (" << out_full.flag << ", " << out_full.modifCells << "), (" << out_empt.flag << ", " << out_empt.modifCells << ") )" << endl;
 				if (out_full.flag != Stuck and out_empt.flag != Stuck){
-					cout << space << "DBG - No need to continue this branch" << endl;
+					if (GlobalParams.printGuessStructure) cout << space << "DBG - No need to continue this branch" << endl;
 					return nSol;
 				}
 
@@ -1265,7 +1283,7 @@ public:
 				delete(hyp_full);
 				delete(hyp_empt);
 			} else {
-				cout << space << "We need to go a level deeper." << endl;
+				if (GlobalParams.printRecursiveStructure) cout << space << "We need to go a level deeper." << endl;
 				grid->print();
 
 				HypHolder chosen(grid->getBest());
@@ -1273,13 +1291,13 @@ public:
 				ComplexSolver* best_choice(new ComplexSolver(this, chosen.i, chosen.j, chosen.best));
 				int nSol_best(best_choice->complexSolve());
 				delete(best_choice);
-				cout << space << "best_choice found :" << nSol_best << endl;
+				if (GlobalParams.printRecursiveStructure) cout << space << "best_choice found :" << nSol_best << endl;
 
 				ComplexSolver* sec_choice(new ComplexSolver(this, chosen.i, chosen.j, (chosen.best == Full ? Empt : Full)));
 				int nSol_Sec(sec_choice->complexSolve());
 				delete(sec_choice);
 
-				cout << space << "second_choice found :" << nSol_Sec << endl;
+				if (GlobalParams.printRecursiveStructure) cout << space << "second_choice found :" << nSol_Sec << endl;
 				return nSol + nSol_best + nSol_Sec;
 			}
 		} while (true);
@@ -1370,7 +1388,7 @@ OUTPUTCOLOR(DEFAULT)
 
 				case Unique:
 					cout << "Solution found!" << endl;
-					Csolver->Lsolver->print(true, DO_CUT_NUMBERS);
+					Csolver->Lsolver->print(true);
 					break;
 			}
 		}
@@ -1378,16 +1396,17 @@ OUTPUTCOLOR(DEFAULT)
 
 	void solve(){
 		int n_solve (Csolver->complexSolve());
-		cout << endl << endl << endl << endl;
+		cout << endl;
 		cout << "The solver found ";
 		OUTPUTCOLOR(CYAN_F)
 		cout << n_solve;
 		OUTPUTCOLOR(DEFAULT)
-		cout << " solution(s) to the Nonogram." << endl;
+		cout << " solution";
+		if (1 < n_solve) cout << "s";
+		cout << " to the Nonogram." << endl;
 
 		cout << endl;
 		for (size_t i(0); i < GLOBAL_SOLUTIONS.size(); i++){
-			cout << i << endl;
 			GLOBAL_SOLUTIONS[i]->print(true);
 		}
 	}
@@ -1449,6 +1468,14 @@ bool test_checkLine(Blocks blocks, line_t lin, line_t goal){
 
 int main(int argc, char *argv[]) {
 	GLOBAL_SOLUTIONS.resize(0);
+
+	setGlobalParameters();
+
+
+
+	// Always run tests and print them only if wanted or errors
+
+
 	string filename;
 	if (argc == 2){
 		filename = argv[1];
