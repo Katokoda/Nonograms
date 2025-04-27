@@ -272,7 +272,7 @@ OUTPUTCOLOR(RED_F)
 	return false;
 }
 
-bool leftMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_t>& res){
+bool leftMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_t>& res, bool realExploration = true){
 	size_t n(lin.size());
 	size_t k(blocks.v.size());
 
@@ -323,10 +323,12 @@ bool leftMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_
 			//cout << "Covering gb " << givB_Idx << "  (" << << givenBlocks[givB_Idx].leftMost << "-" << givenBlocks[givB_Idx].rightMost << ")" << endl;
 			while (givenBlocks[givB_Idx].leftMost < res[idx]) idx--; // too far already
 			if (k < idx){
-OUTPUTCOLOR(RED_F)
-			cout << "Error!" << endl;
-OUTPUTCOLOR(DEFAULT)
-			cout << " Can't cover with any blocks" << endl;
+				if (realExploration){
+					OUTPUTCOLOR(RED_F)
+					cout << "Error!" << endl;
+					OUTPUTCOLOR(DEFAULT)
+					cout << " Can't cover with any blocks" << endl;
+				}
 				return false;
 			}
 			//cout << "with block  " << idx << " at " << res[idx] << endl;
@@ -361,9 +363,11 @@ OUTPUTCOLOR(DEFAULT)
 
 			bool errorFlag(resetScanning(idx, res, blocks, lin, scaner, potStart));
 			if (errorFlag){
-OUTPUTCOLOR(RED_F)
-				cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
-				cout << " - resetScanning before Emptiness" << endl;
+				if (realExploration){
+					OUTPUTCOLOR(RED_F)
+					cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
+					cout << " - resetScanning before Emptiness" << endl;
+				}
 				return false;
 			}
 
@@ -382,9 +386,11 @@ OUTPUTCOLOR(RED_F)
 					}
 					bool errorFlag(resetScanning(idx, res, blocks, lin, scaner, potStart));
 					if (errorFlag){
-OUTPUTCOLOR(RED_F)
-						cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
-						cout << " - resetScanning after Emptiness" << endl;
+						if (realExploration){
+							OUTPUTCOLOR(RED_F)
+							cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
+							cout << " - resetScanning after Emptiness" << endl;
+						}
 						return false;
 					}
 
@@ -407,9 +413,11 @@ OUTPUTCOLOR(RED_F)
 					potStart++;
 					while (potStart < n and lin[potStart - 1] == Full) potStart++;
 					if (potStart == n){
-OUTPUTCOLOR(RED_F)
-						cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
-						cout << " - after getting pulled - potStart == n" << endl;
+						if (realExploration){
+							OUTPUTCOLOR(RED_F)
+							cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
+							cout << " - after getting pulled - potStart == n" << endl;
+						}
 						return false;
 					}
 
@@ -424,9 +432,11 @@ OUTPUTCOLOR(RED_F)
 			cout << "DBG - scaner=" << scaner << "; potStart=" << potStart << "; blocks.v[" << idx << "]=" << blocks.v[idx] << endl;
 			#endif
 			if (scaner - potStart < blocks.v[idx]){
-OUTPUTCOLOR(RED_F)
-				cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
-				cout << " - during sliding - (not enough space)" << endl;
+				if (realExploration){
+					OUTPUTCOLOR(RED_F)
+					cout << "ERROR"; OUTPUTCOLOR(DEFAULT)
+					cout << " - during sliding - (not enough space)" << endl;
+				}
 				return false;
 			}
 			// We can fit block[idx] in [potStart, scaner[
@@ -457,7 +467,7 @@ OUTPUTCOLOR(RED_F)
 	return true;
 }
 
-bool rightMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_t>& res){
+bool rightMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size_t>& res, bool realExploration = true){
 	size_t n(lin.size());
 	line_t lin_inv(n, Void);
 	for (size_t i(0); i < n; i++) lin_inv[n - i - 1] = lin[i];
@@ -466,7 +476,7 @@ bool rightMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size
 
 	OUTPUTCOLOR(YELLOW_F)
 	vector<size_t> inverted(blocks.v.size(), 0);
-	bool flag(leftMostConfiguration(blocks_inv, lin_inv, inverted));
+	bool flag(leftMostConfiguration(blocks_inv, lin_inv, inverted, realExploration));
 	if (not flag) return false;
 	OUTPUTCOLOR(DEFAULT)
 	size_t k(inverted.size());
@@ -476,7 +486,7 @@ bool rightMostConfiguration(Blocks const& blocks, line_t const& lin, vector<size
 	return true;
 }
 
-bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
+bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res, bool realExploration = true){
 	size_t n(lin.size());
 	size_t k(blocks.v.size());
 
@@ -486,41 +496,47 @@ bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 	}
 
 	#ifdef DEBUG_CHECKLINE
-		cout << endl;
-		cout << "Calling checkLine_simple on" << endl;
-		cout << "\"";
-		for (auto const& val:lin) cout << val;
-		cout << "\" with blocks [";
-		for (auto const& val:blocks.v) cout << val << " ";
-		cout << "] gives :" << endl;
+		if (realExploration){
+			cout << endl;
+			cout << "Calling checkLine_simple on" << endl;
+			cout << "\"";
+			for (auto const& val:lin) cout << val;
+			cout << "\" with blocks [";
+			for (auto const& val:blocks.v) cout << val << " ";
+			cout << "] gives :" << endl;
+		}
 	#endif
 
 	// Find LEFT-most configuration
 	vector<size_t> leftMost(blocks.v.size(), 0); // leftMost[i] = left-most square of the i-th block in the left-most configuration
-	bool flag ( leftMostConfiguration(blocks, lin, leftMost));
+	bool flag ( leftMostConfiguration(blocks, lin, leftMost, realExploration));
 	if (not flag) return false;
 
 	// Find RIGHT-most configuration
 	vector<size_t> rightMost(blocks.v.size(), 0); // rightMost[i] = right-most square of the i-th block in the right-most configuration
-	flag = (rightMostConfiguration(blocks, lin, rightMost));
+	flag = (rightMostConfiguration(blocks, lin, rightMost, realExploration));
 	if (not flag) return false;
 
 	#ifdef SCANNING_DEBUG
-		cout << endl << endl;
-		cout << "Continuing checkLine_simple on" << endl << "\"";
-		for (auto const& val:lin) cout << val;
-		cout << "\" with blocks [";
-		for (auto const& val:blocks.v) cout << val << " ";
-		cout << "]." << endl;
-		cout << endl;
+		if (realExploration){
+			cout << endl << endl;
+			cout << "Continuing checkLine_simple on" << endl << "\"";
+			for (auto const& val:lin) cout << val;
+			cout << "\" with blocks [";
+			for (auto const& val:blocks.v) cout << val << " ";
+			cout << "]." << endl;
+			cout << endl;
+		}
 	#endif
 
 
 	for (size_t idx(0); idx < k; idx++){
 		#ifdef DEBUG_CHECKLINE
-				cout << endl;
-				cout << "DBG - checkLine_simple - block " << idx << " of length " << blocks.v[idx] << endl;
-				cout << "[" << leftMost[idx] << ", " << rightMost[idx] << "]" << endl;
+		if (realExploration){
+			cout << endl;
+			cout << "DBG - checkLine_simple - block " << idx << " of length " << blocks.v[idx] << endl;
+			cout << "[" << leftMost[idx] << ", " << rightMost[idx] << "]" << endl;
+		}
 		#endif
 
 
@@ -533,8 +549,10 @@ bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 		size_t scaner(leftMost[idx]);
 		while (potStart <= rightMost[idx]){
 			#ifdef SCANNING_DEBUG
-			cout << "Maybying - Start" << endl;
-			printScanning(potStart, scaner, res);
+			if (realExploration){
+				cout << "Maybying - Start" << endl;
+				printScanning(potStart, scaner, res);
+			}
 			#endif
 
 			while (scaner < potStart + blocks.v[idx] and lin[scaner] != Empt){
@@ -542,8 +560,10 @@ bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 			}
 
 			#ifdef SCANNING_DEBUG
-			cout << "Maybying - foundEnd" << endl;
-			printScanning(potStart, scaner, res);
+			if (realExploration){
+				cout << "Maybying - foundEnd" << endl;
+				printScanning(potStart, scaner, res);
+			}
 			#endif
 
 			if (scaner == potStart + blocks.v[idx]){
@@ -552,8 +572,10 @@ bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 						if (res[pos] != Full) res[pos] = Void;
 					}
 					#if defined(SCANNING_DEBUG) || defined(DEBUG_CHECKLINE)
-						cout << "Maybying - foundEnd - valid : erase x" << endl;
-						printScanning(potStart, scaner, res);
+						if (realExploration){
+							cout << "Maybying - foundEnd - valid : erase x" << endl;
+							printScanning(potStart, scaner, res);
+						}
 					#endif
 				}
 				potStart++;
@@ -563,8 +585,10 @@ bool checkLine_simple(Blocks const& blocks, line_t const& lin, line_t& res){
 			}
 
 			#ifdef SCANNING_DEBUG
-			cout << "Maybying - End" << endl;
-			printScanning(potStart, scaner, res, true);
+			if (realExploration){
+				cout << "Maybying - End" << endl;
+				printScanning(potStart, scaner, res, true);
+			}
 			#endif
 		}
 	}
@@ -597,7 +621,7 @@ bool guessLine(Blocks const& blocks, line_t const& lin, size_t idx, cell guess){
 			lin_changed[i] = guess;
 		}
 	}
-	return checkLine_simple(blocks, lin_changed, out);
+	return checkLine_simple(blocks, lin_changed, out, false);
 }
 
 
@@ -1354,7 +1378,7 @@ OUTPUTCOLOR(DEFAULT)
 
 	void solve(){
 		int n_solve (Csolver->complexSolve());
-		cout << endl;
+		cout << endl << endl << endl << endl;
 		cout << "The solver found ";
 		OUTPUTCOLOR(CYAN_F)
 		cout << n_solve;
